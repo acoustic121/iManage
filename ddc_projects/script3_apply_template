@@ -1,0 +1,74 @@
+from pyzabbix import ZabbixAPI, ZabbixAPIException
+import getpass
+import sys
+import time
+
+
+#Zabbix region mappings 
+def region_map(a):
+    return {
+        'CH3': '10.103.6.15',
+        'LO5': '10.254.0.227',
+        'CA' : '10.230.113.36',
+        'BR' : '10.230.111.36',
+        'DE' : '10.230.116.5',
+        'SG' : '10.255.115.5',
+        'AU' : '10.255.109.5',
+        'DC6': '10.106.14.9',
+        'S1' : '10.250.0.227'
+    }[a]
+
+print("Sites:")
+print("  CH3 AU BR CA DE SG  LO5 DC6 S1")
+region = input("Enter region: ")
+za = region_map(region)
+zabbix_user = 'aman.singh'
+zabbix_pass = 'Greatabc@1234567'
+
+
+
+
+try:
+ #Login into Zabbix
+ zapi = ZabbixAPI (server = "http://"+za+"/zabbix")
+ zapi.login(zabbix_user, zabbix_pass)
+ print("Logged into ","Zabbix")
+ #zapi.login(zabbix_user,zabbix_pass)
+except ZabbixAPIException as e: 
+    print("Cannot connect to the","Zabbix")
+    print(e)
+    sys.exit()
+
+
+zabbix_template_name = "Template App iManage IDOL Deep Check 2.0"
+zabbix_host_names = ["f3dbs1idx01","29f3s1idx01","51e7ds1idx01","f081s1idx01"]
+hostid_list = []
+
+for i in zabbix_host_names:
+    try:
+        hosts = zapi.host.get(search={"host": str(i)+"*".lower()},searchWildcardsEnabled =1)
+        if len(hosts) == 0:
+            hostid_list.append('xxxx')
+            #continue
+        else:
+            hostid_list.append((hosts[0]['hostid']))
+            print(hostid_list)
+    except ZabbixAPIException as e:
+        print(e)
+
+
+# Login to Zabbix API
+# Get the ID of the template by name
+template_id = zapi.template.get(filter={"host": zabbix_template_name})[0]["templateid"]
+print(template_id)
+
+# Loop through the list of host names
+for host_id in hostid_list:
+    # Get the ID of the host by name
+    #host_id = zapi.host.get(filter={"host": host_name})[0]["hostid"]
+    # Add the template to the host
+    zapi.template.massadd(templates=[{"templateid": template_id}], hosts=[{"hostid": host_id}])
+    print("template added")
+
+# Logout from Zabbix API
+#zapi.logout()
